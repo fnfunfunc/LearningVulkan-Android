@@ -2,6 +2,7 @@ package com.eternal.learningvulkan
 
 import android.view.View
 import com.google.androidgamesdk.GameActivity
+import kotlinx.coroutines.Dispatchers
 
 class MainActivity : GameActivity() {
     companion object {
