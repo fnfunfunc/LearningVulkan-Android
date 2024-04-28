@@ -635,7 +635,7 @@ bool InitVulkan(android_app *pApp) {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = 0
+            .queueFamilyIndex = device.queueFamilyIndex
     };
     CALL_VK(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr,
                                 &render.commandPool))
