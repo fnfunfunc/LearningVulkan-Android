@@ -126,7 +126,7 @@ void CreateVulkanDevice(ANativeWindow *platformWindow, VkApplicationInfo *applic
     device.queueFamilyIndex = queueFamilyIndex;
 
     // Create a logical device(vulkan device)
-    float priorities[]{
+    float priorities[]{ // the priority of queue
             1.0f
     };
     VkDeviceQueueCreateInfo queueCreateInfo{
@@ -735,6 +735,8 @@ void DeleteVulkan() {
     vkDestroyCommandPool(device.device, render.commandPool, nullptr);
     vkDestroyRenderPass(device.device, render.renderPass, nullptr);
     DeleteSwapchain();
+    DeleteGraphicsPipeline();
+    DeleteBuffers();
 
     vkDestroyDevice(device.device, nullptr);
     vkDestroyInstance(device.instance, nullptr);
