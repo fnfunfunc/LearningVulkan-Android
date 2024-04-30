@@ -24,7 +24,8 @@ get_target_property(game-activity-include
 # one used for loading in your Kotlin/Java or AndroidManifest.txt files.
 add_library(learningvulkan SHARED
         main.cc
-        VulkanMain.cc
+        TriangleApp.cc
+        VulkanUtils.cc
         ${CMAKE_SOURCE_DIR}/vulkan_wrapper/vulkan_wrapper.cc
         ${game-activity-include}/game-activity/native_app_glue/android_native_app_glue.c
         ${game-activity-include}/game-activity/GameActivity.cpp
