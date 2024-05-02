@@ -1,19 +1,18 @@
 #include <android/log.h>
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 #include "TriangleApp.hh"
+#include "HelloTriangle.hh"
 
 void handleCmd(android_app *pApp, int32_t cmd) {
-    auto *const triangleApp = reinterpret_cast<TriangleApp *>(pApp->userData);
+    auto *const pHelloTriangle = reinterpret_cast<HelloTriangle *>(pApp->userData);
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
-            if (triangleApp != nullptr) {
-                triangleApp->run();
+            if (pHelloTriangle != nullptr) {
+                pHelloTriangle->prepare(pApp->window);
             }
             break;
         case APP_CMD_TERM_WINDOW:
-            if (triangleApp != nullptr) {
-                triangleApp->release();
-            }
+                delete pHelloTriangle;
             break;
         default:
             __android_log_print(ANDROID_LOG_INFO, "Learning Vulkan", "event not handled: %d", cmd);
@@ -22,15 +21,16 @@ void handleCmd(android_app *pApp, int32_t cmd) {
 
 
 void android_main(android_app *pApp) {
-    TriangleApp triangleApp{pApp};
-    pApp->userData = &triangleApp;
+//    TriangleApp triangleApp{pApp};
+    auto* helloTriangle = new HelloTriangle(pApp);
+    pApp->userData = helloTriangle;
     pApp->onAppCmd = handleCmd;
 
     int events;
     android_poll_source *source;
 
     do {
-        if (ALooper_pollAll(triangleApp.isReady() ? 1 : 0, nullptr, &events,
+        if (ALooper_pollAll(helloTriangle->isReady() ? 1 : 0, nullptr, &events,
                             reinterpret_cast<void **>(&source)) >= 0) {
             if (source != nullptr) {
                 source->process(pApp, source);
@@ -38,8 +38,8 @@ void android_main(android_app *pApp) {
         }
 
         // render if vulkan is ready
-        if (triangleApp.isReady()) {
-            triangleApp.drawFrame();
+        if (helloTriangle->isReady()) {
+            helloTriangle->update(0.0f);
         }
     } while (pApp->destroyRequested == 0);
 }
