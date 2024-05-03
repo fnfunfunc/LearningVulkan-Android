@@ -6,6 +6,7 @@
 #define LEARNINGVULKAN_HELLOTRIANGLE_HH
 
 #include <game-activity/native_app_glue/android_native_app_glue.h>
+#include <utility>
 #include "base/VulkanBaseApp.hh"
 #include "vulkan_wrapper.hh"
 
@@ -33,7 +34,7 @@ class HelloTriangle final : public VulkanBaseApp {
 
         VkSemaphore swapchainReleaseSemaphore = VK_NULL_HANDLE;
 
-        int32_t queueIndex;
+        int32_t queueIndex = -1;
     };
 
     struct Context {
@@ -62,6 +63,8 @@ class HelloTriangle final : public VulkanBaseApp {
         VkPipeline pipeline = VK_NULL_HANDLE;
 
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+
+        VkBuffer vertexBuffer;
 
         /// A set of semaphores that can be reused
         std::vector<VkSemaphore> recycledSemaphores{};
@@ -99,6 +102,8 @@ private:
 
     void teardownFramebuffers();
 
+    void initVertexBuffers();
+
     void initPerFrame(PerFrameData &perFrame) const;
 
     void teardownPerFrame(PerFrameData &perFrame);
@@ -108,6 +113,8 @@ private:
     VkResult acquireNextImage(uint32_t *image);
 
     VkResult presentImage(uint32_t index);
+
+    void updateVertexBuffer(const VkCommandBuffer& commandBuffer);
 
     static bool validateExtensions(const std::vector<const char *> &requiredExtensions,
                                    const std::vector<VkExtensionProperties> &availableExtensions);

@@ -7,13 +7,12 @@ void handleCmd(android_app *pApp, int32_t cmd) {
     auto *const pHelloTriangle = reinterpret_cast<HelloTriangle *>(pApp->userData);
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
-            if (pHelloTriangle != nullptr) {
+            if (pHelloTriangle != nullptr && !pHelloTriangle->isReady()) {
                 pHelloTriangle->prepare(pApp->window);
             }
             break;
-        case APP_CMD_TERM_WINDOW:
-                delete pHelloTriangle;
-            break;
+        case APP_CMD_DESTROY:
+            delete pHelloTriangle;
         default:
             __android_log_print(ANDROID_LOG_INFO, "Learning Vulkan", "event not handled: %d", cmd);
     }

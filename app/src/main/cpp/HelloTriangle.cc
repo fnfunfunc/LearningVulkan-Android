@@ -3,6 +3,8 @@
 //
 #include <array>
 #include <cassert>
+#include <chrono>
+#include <cmath>
 #include "Debug.hh"
 #include "HelloTriangle.hh"
 #include "VulkanCommon.hh"
@@ -44,6 +46,7 @@ bool HelloTriangle::prepare(ANativeWindow *window) {
     initRenderPass();
     initPipeline();
     initFramebuffers();
+    initVertexBuffers();
 
     isReady_ = true;
     return true;
@@ -97,6 +100,11 @@ void HelloTriangle::teardown() {
     if (context.renderPass != VK_NULL_HANDLE) {
         vkDestroyRenderPass(context.device, context.renderPass, nullptr);
         context.renderPass = VK_NULL_HANDLE;
+    }
+
+    if (context.vertexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(context.device, context.vertexBuffer, nullptr);
+        context.vertexBuffer = VK_NULL_HANDLE;
     }
 
     for (VkImageView imageView: context.swapchainImageViews) {
@@ -453,14 +461,26 @@ void HelloTriangle::initPipeline() {
     CALL_VK(vkCreatePipelineLayout(context.device, &layoutCreateInfo, nullptr,
                                    &context.pipelineLayout))
 
+    VkVertexInputBindingDescription inputBinding{
+            .binding = 0,
+            .stride = 2 * sizeof(float),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    };
+    VkVertexInputAttributeDescription inputAttribute{
+            .location = 0,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+            .offset = 0
+    };
+
     VkPipelineVertexInputStateCreateInfo vertexInput{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .vertexBindingDescriptionCount = 0,
-            .pVertexBindingDescriptions = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions = nullptr
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &inputBinding,
+            .vertexAttributeDescriptionCount = 1,
+            .pVertexAttributeDescriptions = &inputAttribute
     };
 
     // Specify we will use triangle lists to draw geometry.
@@ -538,9 +558,11 @@ void HelloTriangle::initPipeline() {
     };
 
     VkShaderModule vertexShader, fragmentShader;
-    vulkan_utils::loadShaderFromFile(androidAppCtx, context.device, "shaders/hello_triangle.vert.spv",
+    vulkan_utils::loadShaderFromFile(androidAppCtx, context.device,
+                                     "shaders/hello_triangle.vert.spv",
                                      &vertexShader);
-    vulkan_utils::loadShaderFromFile(androidAppCtx, context.device, "shaders/hello_triangle.frag.spv",
+    vulkan_utils::loadShaderFromFile(androidAppCtx, context.device,
+                                     "shaders/hello_triangle.frag.spv",
                                      &fragmentShader);
     std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
             VkPipelineShaderStageCreateInfo{
@@ -620,6 +642,52 @@ void HelloTriangle::teardownFramebuffers() {
     }
 
     context.swapchainFramebuffers.clear();
+}
+
+void HelloTriangle::initVertexBuffers() {
+    const float vertexData[] = {
+            -0.8f, 0.4f,
+            0.4f, -0.8f,
+            0.8f, 0.8f,
+    };
+    VkBufferCreateInfo bufferCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = 32,
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 1,
+            .pQueueFamilyIndices = reinterpret_cast<const uint32_t *>(&context.graphicsQueueIndex),
+    };
+
+    CALL_VK(vkCreateBuffer(context.device, &bufferCreateInfo, nullptr, &context.vertexBuffer))
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(context.device, context.vertexBuffer, &memoryRequirements);
+
+    uint32_t memoryTypeIndex;
+    vulkan_utils::mapMemoryTypeToIndex(context.gpu, memoryRequirements.memoryTypeBits,
+                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memoryTypeIndex);
+
+    VkMemoryAllocateInfo allocateInfo{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .allocationSize = memoryRequirements.size,
+            .memoryTypeIndex = memoryTypeIndex
+    };
+
+    VkDeviceMemory deviceMemory;
+    vkAllocateMemory(context.device, &allocateInfo, nullptr, &deviceMemory);
+
+    void *data;
+    CALL_VK(vkMapMemory(context.device, deviceMemory, 0, allocateInfo.allocationSize, 0, &data))
+
+    memcpy(data, vertexData, sizeof(vertexData));
+    vkUnmapMemory(context.device, deviceMemory);
+
+    CALL_VK(vkBindBufferMemory(context.device, context.vertexBuffer, deviceMemory, 0))
 }
 
 /**
@@ -727,6 +795,8 @@ void HelloTriangle::renderTriangle(uint32_t swapchainIndex) {
     };
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+    updateVertexBuffer(commandBuffer);
+
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context.pipeline);
 
     VkViewport viewport{
@@ -749,6 +819,10 @@ void HelloTriangle::renderTriangle(uint32_t swapchainIndex) {
     };
     // Set scissor dynamically
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &context.vertexBuffer,
+                           &offset);
 
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
@@ -840,7 +914,7 @@ VkResult HelloTriangle::acquireNextImage(uint32_t *image) {
  * @brief Presents an image to the swapchain
  */
 VkResult HelloTriangle::presentImage(uint32_t index) {
-    VkPresentInfoKHR presentInfo {
+    VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = nullptr,
             .waitSemaphoreCount = 1,
@@ -851,6 +925,26 @@ VkResult HelloTriangle::presentImage(uint32_t index) {
             .pResults = nullptr
     };
     return vkQueuePresentKHR(context.queue, &presentInfo);
+}
+
+void HelloTriangle::updateVertexBuffer(const VkCommandBuffer &commandBuffer) {
+    using namespace std::chrono;
+    const auto timestamp = static_cast<double>(duration_cast<milliseconds>(
+            system_clock::now().time_since_epoch()).count()) / 1000.0;
+    constexpr auto speedFactor = 1.0;
+    const auto rotationAngle = fmod(speedFactor * timestamp, 2 * M_PI);
+    float vertexData[] = {
+            -0.8f, 0.4f,
+            0.4f, -0.8f,
+            0.8f, 0.8f,
+    };
+
+    for (uint i = 0; i < 3; ++i) {
+        vertexData[i * 2] += static_cast<float>(cos(rotationAngle) * 0.1);
+        vertexData[i * 2 + 1] += static_cast<float>(sin(rotationAngle) * 0.1);
+    }
+
+    vkCmdUpdateBuffer(commandBuffer, context.vertexBuffer, 0, sizeof(vertexData), vertexData);
 }
 
 bool HelloTriangle::validateExtensions(const std::vector<const char *> &requiredExtensions,
