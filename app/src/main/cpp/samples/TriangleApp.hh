@@ -7,6 +7,7 @@
 
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 #include <glm/glm.hpp>
+#include <optional>
 #include <utility>
 #include "VulkanBaseApp.hh"
 #include "vulkan_wrapper.hh"
@@ -34,8 +35,6 @@ class TriangleApp final : public VulkanBaseApp {
         VkSemaphore swapchainAcquireSemaphore = VK_NULL_HANDLE;
 
         VkSemaphore swapchainReleaseSemaphore = VK_NULL_HANDLE;
-
-        int32_t queueIndex = -1;
     };
 
     struct Vertex {
@@ -58,7 +57,7 @@ class TriangleApp final : public VulkanBaseApp {
 
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-        int32_t graphicsQueueIndex = -1;
+        std::optional<uint32_t> graphicsQueueIndex = std::nullopt;
 
         std::vector<VkImageView> swapchainImageViews{};
 

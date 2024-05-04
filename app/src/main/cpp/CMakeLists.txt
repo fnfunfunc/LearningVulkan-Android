@@ -11,6 +11,7 @@ include_directories(
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+                     -std=c++2b \
                      -DVK_USE_PLATFORM_ANDROID_KHR")
 
 # Searches for a package provided by the game activity dependency

@@ -120,6 +120,7 @@ void TriangleApp::teardown() {
         vkDestroyDevice(context.device, nullptr);
         context.device = VK_NULL_HANDLE;
     }
+    context.graphicsQueueIndex = std::nullopt;
 }
 
 void TriangleApp::initInstance(std::vector<const char *> &&requiredInstanceExtensions) {
@@ -195,7 +196,7 @@ bool TriangleApp::initDevice(std::vector<const char *> &&requiredDeviceExtension
 
             if (isGraphicsQueue && supportedPresent) {
                 context.gpu = gpu;
-                context.graphicsQueueIndex = static_cast<int32_t>(i);
+                context.graphicsQueueIndex = i;
                 break;
             }
         }
@@ -229,7 +230,7 @@ bool TriangleApp::initDevice(std::vector<const char *> &&requiredDeviceExtension
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .queueFamilyIndex = static_cast<uint32_t>(context.graphicsQueueIndex),
+            .queueFamilyIndex = context.graphicsQueueIndex.value(),
             .queueCount = 1,
             .pQueuePriorities = queuePriorities
     };
@@ -249,7 +250,12 @@ bool TriangleApp::initDevice(std::vector<const char *> &&requiredDeviceExtension
 
     CALL_VK(vkCreateDevice(context.gpu, &deviceCreateInfo, nullptr, &context.device))
 
-    vkGetDeviceQueue(context.device, context.graphicsQueueIndex, 0, &context.queue);
+    if (context.graphicsQueueIndex.has_value()) {
+        vkGetDeviceQueue(context.device, context.graphicsQueueIndex.value(), 0, &context.queue);
+    } else {
+        LOGE("context.graphicsQueueIndex is nullopt");
+        return false;
+    }
 
     return true;
 }
@@ -702,7 +708,7 @@ void TriangleApp::initPerFrame(TriangleApp::PerFrameData &perFrame) const {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-            .queueFamilyIndex = static_cast<uint32_t>(context.graphicsQueueIndex)
+            .queueFamilyIndex = context.graphicsQueueIndex.value()
     };
 
     CALL_VK(vkCreateCommandPool(context.device, &commandPoolCreateInfo, nullptr,
@@ -719,7 +725,6 @@ void TriangleApp::initPerFrame(TriangleApp::PerFrameData &perFrame) const {
                                      &perFrame.primaryCommandBuffer))
 
     perFrame.device = context.device;
-    perFrame.queueIndex = context.graphicsQueueIndex;
 }
 
 void TriangleApp::teardownPerFrame(TriangleApp::PerFrameData &perFrame) const {
@@ -750,7 +755,6 @@ void TriangleApp::teardownPerFrame(TriangleApp::PerFrameData &perFrame) const {
     }
 
     perFrame.device = VK_NULL_HANDLE;
-    perFrame.queueIndex = -1;
 }
 
 /**
