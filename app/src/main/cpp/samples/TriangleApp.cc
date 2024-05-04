@@ -45,7 +45,7 @@ bool TriangleApp::prepare(ANativeWindow *window) {
     initRenderPass();
     initPipeline();
     initFramebuffers();
-    initVertexBuffers();
+    initBuffers();
 
     isReady_ = true;
     return true;
@@ -657,19 +657,19 @@ void TriangleApp::teardownFramebuffers() {
     context.swapchainFramebuffers.clear();
 }
 
-void TriangleApp::initVertexBuffers() {
-    VkBufferCreateInfo bufferCreateInfo{
+void TriangleApp::initBuffers() {
+    VkBufferCreateInfo vertexBufferCreateInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .size = 3 * sizeof(Vertex),
+            .size = 4 * sizeof(Vertex),
             .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 1,
-            .pQueueFamilyIndices = reinterpret_cast<const uint32_t *>(&context.graphicsQueueIndex),
+            .pQueueFamilyIndices = &context.graphicsQueueIndex.value(),
     };
 
-    CALL_VK(vkCreateBuffer(context.device, &bufferCreateInfo, nullptr, &context.vertexBuffer))
+    CALL_VK(vkCreateBuffer(context.device, &vertexBufferCreateInfo, nullptr, &context.vertexBuffer))
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(context.device, context.vertexBuffer, &memoryRequirements);
@@ -679,7 +679,7 @@ void TriangleApp::initVertexBuffers() {
                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memoryTypeIndex);
 
-    VkMemoryAllocateInfo allocateInfo{
+    VkMemoryAllocateInfo vertexBufferAllocateInfo{
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext = nullptr,
             .allocationSize = memoryRequirements.size,
@@ -687,9 +687,46 @@ void TriangleApp::initVertexBuffers() {
     };
 
     VkDeviceMemory deviceMemory;
-    vkAllocateMemory(context.device, &allocateInfo, nullptr, &deviceMemory);
+    vkAllocateMemory(context.device, &vertexBufferAllocateInfo, nullptr, &deviceMemory);
 
     CALL_VK(vkBindBufferMemory(context.device, context.vertexBuffer, deviceMemory, 0))
+
+    const uint16_t indices[] = {
+            0, 1, 2,
+            2, 3, 0
+    };
+    VkBufferCreateInfo indexBufferCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = sizeof(indices),
+            .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 1,
+            .pQueueFamilyIndices = &context.graphicsQueueIndex.value()
+    };
+
+    CALL_VK(vkCreateBuffer(context.device, &indexBufferCreateInfo, nullptr, &context.indexBuffer))
+
+    vkGetBufferMemoryRequirements(context.device, context.vertexBuffer, &memoryRequirements);
+    vulkan_common::mapMemoryTypeToIndex(context.gpu, memoryRequirements.memoryTypeBits,
+                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memoryTypeIndex);
+
+    VkMemoryAllocateInfo indexBufferAllocateInfo{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .allocationSize = memoryRequirements.size,
+            .memoryTypeIndex = memoryTypeIndex
+    };
+
+    vkAllocateMemory(context.device, &indexBufferAllocateInfo, nullptr, &deviceMemory);
+    void *data;
+    vkMapMemory(context.device, deviceMemory, 0, memoryRequirements.size, 0, &data);
+    memcpy(data, indices, sizeof(indices));
+    vkUnmapMemory(context.device, deviceMemory);
+
+    CALL_VK(vkBindBufferMemory(context.device, context.indexBuffer, deviceMemory, 0))
 }
 
 /**
@@ -823,8 +860,8 @@ void TriangleApp::renderTriangle(uint32_t swapchainIndex) {
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &context.vertexBuffer,
                            &offset);
-
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdBindIndexBuffer(commandBuffer, context.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -935,22 +972,19 @@ void TriangleApp::updateVertexBuffer(const VkCommandBuffer &commandBuffer) const
     constexpr auto rotationMagnitude = 0.2f;
     const auto rotationAngle = fmod(speedFactor * timestamp, 2 * M_PI);
 
-    glm::vec2 positionData[] = {
-            {-0.8f, 0.4f},
-            {0.4f,  -0.8f},
-            {0.8f,  0.8f},
+    const float colorNumber = 1.0f;
+
+    Vertex vertexData[] = {
+            {.position {-0.5f, 0.5f}, .color {colorNumber, colorNumber, 0.0f, 1.0f}},
+            {.position {-0.5f, -0.5f}, .color {colorNumber, 0.0f, colorNumber, 1.0f}},
+            {.position {0.5f, -0.5f}, .color {0.0f, colorNumber, colorNumber, 1.0f}},
+            {.position {0.5f, 0.5f}, .color {colorNumber, colorNumber, colorNumber, 1.0f}},
     };
 
-    for (auto &position: positionData) {
-        position.x += static_cast<float>(cos(rotationAngle)) * rotationMagnitude;
-        position.y += static_cast<float>(sin(rotationAngle)) * rotationMagnitude;
+    for (auto& vertex: vertexData) {
+        vertex.position.x += static_cast<float>(cos(rotationAngle)) * rotationMagnitude;
+        vertex.position.y += static_cast<float>(sin(rotationAngle)) * rotationMagnitude;
     }
-
-    const Vertex vertexData[] = {
-            {.position {positionData[0]}, .color {1.0f, 0.0f, 0.0f, 1.0f}},
-            {.position {positionData[1]}, .color {0.0f, 1.0f, 0.0f, 1.0f}},
-            {.position {positionData[2]}, .color {0.0f, 0.0f, 1.0f, 1.0f}},
-    };
 
     vkCmdUpdateBuffer(commandBuffer, context.vertexBuffer, 0, sizeof(vertexData), vertexData);
 }

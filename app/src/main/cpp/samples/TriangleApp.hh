@@ -71,6 +71,8 @@ class TriangleApp final : public VulkanBaseApp {
 
         VkBuffer vertexBuffer;
 
+        VkBuffer indexBuffer;
+
         /// A set of semaphores that can be reused
         std::vector<VkSemaphore> recycledSemaphores{};
 
@@ -107,7 +109,7 @@ private:
 
     void teardownFramebuffers();
 
-    void initVertexBuffers();
+    void initBuffers();
 
     void initPerFrame(PerFrameData &perFrame) const;
 

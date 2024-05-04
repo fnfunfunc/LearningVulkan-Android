@@ -20,15 +20,15 @@ void handleCmd(android_app *pApp, int32_t cmd) {
 
 
 void android_main(android_app *pApp) {
-    auto* helloTriangle = new TriangleApp(pApp);
-    pApp->userData = helloTriangle;
+    auto* pTriangleApp = new TriangleApp(pApp);
+    pApp->userData = pTriangleApp;
     pApp->onAppCmd = handleCmd;
 
     int events;
     android_poll_source *source;
 
     do {
-        if (ALooper_pollAll(helloTriangle->isReady() ? 1 : 0, nullptr, &events,
+        if (ALooper_pollAll(pTriangleApp->isReady() ? 1 : 0, nullptr, &events,
                             reinterpret_cast<void **>(&source)) >= 0) {
             if (source != nullptr) {
                 source->process(pApp, source);
@@ -36,8 +36,8 @@ void android_main(android_app *pApp) {
         }
 
         // render if vulkan is ready
-        if (helloTriangle->isReady()) {
-            helloTriangle->update(0.0f);
+        if (pTriangleApp->isReady()) {
+            pTriangleApp->update(0.0f);
         }
     } while (pApp->destroyRequested == 0);
 }
