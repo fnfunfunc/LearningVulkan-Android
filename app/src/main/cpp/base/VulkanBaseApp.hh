@@ -16,7 +16,7 @@ public:
 
     virtual bool prepare(ANativeWindow* window);
 
-    virtual void update(float deltaTime);
+    virtual void update([[maybe_unused]] float deltaTime);
 
     virtual void updateOverlay(float deltaTime, const std::function<void()> &additional_ui = [](){});
 

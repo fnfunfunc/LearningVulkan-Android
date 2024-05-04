@@ -27,4 +27,49 @@ namespace vulkan_common {
         // We use the first supported format as a fallback in case none of the preferred formats is available
         return it != surfaceFormats.end() ? *it : surfaceFormats.front();
     }
+
+    VkResult
+    loadShaderFromFile(const android_app *androidAppCtx, const VkDevice device,
+                       const char *filePath,
+                       VkShaderModule *shaderOut) {
+        assert(androidAppCtx != nullptr);
+        AAsset *assetFile = AAssetManager_open(androidAppCtx->activity->assetManager, filePath,
+                                               AASSET_MODE_BUFFER);
+        const size_t fileLength = AAsset_getLength(assetFile);
+        char *shaderCode = new char[fileLength];
+
+        AAsset_read(assetFile, shaderCode, fileLength);
+        AAsset_close(assetFile);
+
+        VkShaderModuleCreateInfo shaderModuleCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .codeSize = fileLength,
+                .pCode = reinterpret_cast<const uint32_t *>(shaderCode)
+        };
+
+        VkResult result = vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, shaderOut);
+
+        delete[] shaderCode;
+
+        return result;
+    }
+
+    bool mapMemoryTypeToIndex(VkPhysicalDevice physicalDevice, uint32_t typeBits,
+                              VkFlags requirementsMask, uint32_t *typeIndex) {
+        VkPhysicalDeviceMemoryProperties memoryProperties;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+
+        for (uint32_t i = 0; i < 32; ++i) {
+            if ((typeBits & 1) == 1) {
+                if ((memoryProperties.memoryTypes[i].propertyFlags & requirementsMask) ==
+                    requirementsMask) {
+                    *typeIndex = i;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

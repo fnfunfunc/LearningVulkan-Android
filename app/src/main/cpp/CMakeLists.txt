@@ -23,24 +23,25 @@ get_target_property(game-activity-include
 # Creates your game shared library. The name must be the same as the
 # one used for loading in your Kotlin/Java or AndroidManifest.txt files.
 file(GLOB_RECURSE baseFiles "base/*.cc")
+file(GLOB_RECURSE sampleFiles "samples/*.cc")
 
 add_library(learningvulkan SHARED
         main.cc
-        HelloTriangle.cc
-        TriangleApp.cc
-        VulkanUtils.cc
-        base/VulkanBaseApp.cc
-        base/VulkanCommon.cc
+        ${baseFiles}
+        ${sampleFiles}
         ${CMAKE_SOURCE_DIR}/vulkan_wrapper/vulkan_wrapper.cc
         ${game-activity-include}/game-activity/native_app_glue/android_native_app_glue.c
         ${game-activity-include}/game-activity/GameActivity.cpp
         ${game-activity-include}/game-text-input/gametextinput.cpp
 )
 
-include_directories(base)
+add_subdirectory(third_party)
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR} base)
 
 # Configure libraries CMake uses to link your target library.
-target_link_libraries(learningvulkan
+target_link_libraries(${PROJECT_NAME}
         game-activity::game-activity
         android
-        log)
+        log
+        glm)
