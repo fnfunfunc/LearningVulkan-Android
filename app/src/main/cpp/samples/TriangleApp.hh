@@ -5,6 +5,7 @@
 #ifndef LEARNINGVULKAN_TRIANGLEAPP_HH
 #define LEARNINGVULKAN_TRIANGLEAPP_HH
 
+#include <chrono>
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 #include <glm/glm.hpp>
 #include <optional>
@@ -106,6 +107,8 @@ private:
     Context context;
 
     android_app *androidAppCtx;
+
+    std::chrono::time_point<std::chrono::system_clock> startTimePoint{};
 
     void teardown();
 

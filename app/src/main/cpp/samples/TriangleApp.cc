@@ -55,6 +55,7 @@ bool TriangleApp::prepare(ANativeWindow *window) {
     initDescriptorPool();
     initDescriptorSets();
 
+    startTimePoint = std::chrono::system_clock::now();
     isReady_ = true;
     return true;
 }
@@ -1038,11 +1039,11 @@ void TriangleApp::updateVertexBuffer(const VkCommandBuffer &commandBuffer) const
 
 void TriangleApp::updateUniformBuffer(VkCommandBuffer const &commandBuffer) const {
     using namespace std::chrono;
-    const auto timestamp = static_cast<double>(duration_cast<milliseconds>(
-            system_clock::now().time_since_epoch()).count()) / 1000.0;
+    const auto timestamp = static_cast<float>(duration_cast<milliseconds>(
+            system_clock::now() - startTimePoint).count()) / 1000.0f;
 
     constexpr float pulseRate = 1.5f;
-    const float scaleFactor = 1.0f + 0.5f * std::cos(pulseRate * timestamp);
+    const float scaleFactor = 1.0f + 0.5f * std::cosf(pulseRate * timestamp);
     const glm::vec2 scale{scaleFactor, scaleFactor};
     const glm::mat4x4 scaleMatrix = math_utils::scale2D(scale);
 
