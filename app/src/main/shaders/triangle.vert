@@ -18,14 +18,18 @@
 
 precision mediump float;
 
-layout(location = 0) in vec2 in_position;
-layout(location = 1) in vec4 in_color;
-layout(location = 0) out vec4 out_color;
+layout (location = 0) in vec2 in_position;
+layout (location = 1) in vec4 in_color;
+layout (location = 0) out vec4 out_color;
 
+layout (binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 projection;
+} ubo;
 
 void main()
 {
-    gl_Position = vec4(in_position, 0.5, 1.0);
+    gl_Position = ubo.projection * ubo.model * vec4(in_position, 0.0, 1.0);
 
     out_color = in_color;
 }

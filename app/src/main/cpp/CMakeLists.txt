@@ -25,11 +25,13 @@ get_target_property(game-activity-include
 # one used for loading in your Kotlin/Java or AndroidManifest.txt files.
 file(GLOB_RECURSE baseFiles "base/*.cc")
 file(GLOB_RECURSE sampleFiles "samples/*.cc")
+file(GLOB_RECURSE utilsFiles "utils/*.cc")
 
 add_library(learningvulkan SHARED
         main.cc
         ${baseFiles}
         ${sampleFiles}
+        ${utilsFiles}
         ${CMAKE_SOURCE_DIR}/vulkan_wrapper/vulkan_wrapper.cc
         ${game-activity-include}/game-activity/native_app_glue/android_native_app_glue.c
         ${game-activity-include}/game-activity/GameActivity.cpp
@@ -38,7 +40,7 @@ add_library(learningvulkan SHARED
 
 add_subdirectory(third_party)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR} base)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR} base utils)
 
 # Configure libraries CMake uses to link your target library.
 target_link_libraries(${PROJECT_NAME}

@@ -42,6 +42,12 @@ class TriangleApp final : public VulkanBaseApp {
         glm::vec4 color;
     };
 
+    struct UniformBufferObject {
+        glm::mat4x4 modelMatrix;
+
+        glm::mat4x4 projectionMatrix;
+    };
+
     struct Context {
         VkInstance instance = VK_NULL_HANDLE;
 
@@ -69,9 +75,17 @@ class TriangleApp final : public VulkanBaseApp {
 
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
-        VkBuffer vertexBuffer;
+        VkBuffer vertexBuffer = VK_NULL_HANDLE;
 
-        VkBuffer indexBuffer;
+        VkBuffer indexBuffer = VK_NULL_HANDLE;
+
+        VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+
+        VkBuffer uniformBuffer = VK_NULL_HANDLE;
+
+        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+
+        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
         /// A set of semaphores that can be reused
         std::vector<VkSemaphore> recycledSemaphores{};
@@ -80,7 +94,7 @@ class TriangleApp final : public VulkanBaseApp {
         std::vector<PerFrameData> perFrame{};
     };
 public:
-    explicit TriangleApp(android_app* pApp);
+    explicit TriangleApp(android_app *pApp);
 
     ~TriangleApp() override;
 
@@ -91,7 +105,7 @@ public:
 private:
     Context context;
 
-    android_app* androidAppCtx;
+    android_app *androidAppCtx;
 
     void teardown();
 
@@ -103,13 +117,23 @@ private:
 
     void initRenderPass();
 
+    void initDescriptorSetLayout();
+
     void initPipeline();
 
     void initFramebuffers();
 
     void teardownFramebuffers();
 
-    void initBuffers();
+    void initVertexBuffers();
+
+    void initIndexBuffers();
+
+    void initUniformBuffers();
+
+    void initDescriptorPool();
+
+    void initDescriptorSets();
 
     void initPerFrame(PerFrameData &perFrame) const;
 
@@ -121,7 +145,13 @@ private:
 
     VkResult presentImage(uint32_t index);
 
-    void updateVertexBuffer(const VkCommandBuffer& commandBuffer) const;
+    void updateVertexBuffer(const VkCommandBuffer &commandBuffer) const;
+
+    void updateUniformBuffer(const VkCommandBuffer &commandBuffer) const;
+
+    /* Util functions */
+    void createBuffer(VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags,
+                      VkSharingMode sharingMode, VkFlags requirementsMask, VkBuffer& rBuffer, VkDeviceMemory& rDeviceMemory);
 
     static bool validateExtensions(const std::vector<const char *> &requiredExtensions,
                                    const std::vector<VkExtensionProperties> &availableExtensions);
