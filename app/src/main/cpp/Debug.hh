@@ -4,6 +4,7 @@
 
 #ifndef LEARNINGVULKAN_DEBUG_HH
 #define LEARNINGVULKAN_DEBUG_HH
+
 #include <android/log.h>
 #include <cassert>
 
@@ -17,12 +18,14 @@ static const char *kTAG = "Native_LearningVulkan";
   ((void)__android_log_print(ANDROID_LOG_ERROR, kTAG, __VA_ARGS__))
 
 // Vulkan call wrapper
-#define CALL_VK(func)                                                 \
-  if (VK_SUCCESS != (func)) {                                         \
+#define CALL_VK(func) \
+  {const auto res = (func);                    \
+  if (VK_SUCCESS != res) {                                         \
     __android_log_print(ANDROID_LOG_ERROR, "LearningVulkan ",               \
-                        "Vulkan error. File[%s], line[%d]", __FILE__, \
+                        "Vulkan error %d. File[%s], line[%d]", res, __FILE__, \
                         __LINE__);                                    \
     assert(false);                                                    \
-  }
+  }\
+}
 
 #endif //LEARNINGVULKAN_DEBUG_HH

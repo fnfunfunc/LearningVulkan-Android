@@ -95,9 +95,11 @@ void TriangleApp::teardown() {
         vkDestroySemaphore(context.device, semaphore, nullptr);
     }
 
-    if (context.uniformBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(context.device, context.uniformBuffer, nullptr);
-        context.uniformBuffer = VK_NULL_HANDLE;
+    if (!context.uniformBuffers.empty()) {
+        for (const auto &uniformBuffer: context.uniformBuffers) {
+            vkDestroyBuffer(context.device, uniformBuffer, nullptr);
+        }
+        context.uniformBuffers.clear();
     }
 
     if (context.indexBuffer != VK_NULL_HANDLE) {
@@ -130,9 +132,10 @@ void TriangleApp::teardown() {
         context.renderPass = VK_NULL_HANDLE;
     }
 
-    if (context.descriptorSet != VK_NULL_HANDLE) {
-        vkFreeDescriptorSets(context.device, context.descriptorPool, 1, &context.descriptorSet);
-        context.descriptorSet = VK_NULL_HANDLE;
+    if (!context.descriptorSets.empty()) {
+        vkFreeDescriptorSets(context.device, context.descriptorPool, context.descriptorSets.size(),
+                             context.descriptorSets.data());
+        context.descriptorSets.clear();
     }
 
     if (context.descriptorPool != VK_NULL_HANDLE) {
@@ -750,23 +753,27 @@ void TriangleApp::initIndexBuffers() {
 
 void TriangleApp::initUniformBuffers() {
     constexpr VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-    VkDeviceMemory deviceMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 context.uniformBuffer, deviceMemory);
+    context.uniformBuffers.resize(context.perFrame.size());
+    for (auto &uniformBuffer: context.uniformBuffers) {
+        VkDeviceMemory deviceMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uniformBuffer, deviceMemory);
+    }
 }
 
 void TriangleApp::initDescriptorPool() {
+    const uint32_t descriptorCount = context.perFrame.size();
     VkDescriptorPoolSize poolSize{
             .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1,
+            .descriptorCount = descriptorCount,
     };
 
     VkDescriptorPoolCreateInfo poolCreateInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .maxSets = 1,
+            .maxSets = descriptorCount,
             .poolSizeCount = 1,
             .pPoolSizes = &poolSize
     };
@@ -776,16 +783,18 @@ void TriangleApp::initDescriptorPool() {
 }
 
 void TriangleApp::initDescriptorSets() {
+    const std::vector<VkDescriptorSetLayout> layouts(context.perFrame.size(), context.descriptorSetLayout);
+    context.descriptorSets.resize(layouts.size());
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             .pNext = nullptr,
             .descriptorPool = context.descriptorPool,
-            .descriptorSetCount = 1,
-            .pSetLayouts = &context.descriptorSetLayout
+            .descriptorSetCount = static_cast<uint32_t>(layouts.size()),
+            .pSetLayouts = layouts.data()
     };
 
     CALL_VK(vkAllocateDescriptorSets(context.device, &descriptorSetAllocateInfo,
-                                     &context.descriptorSet))
+                                     context.descriptorSets.data()))
 }
 
 /**
@@ -892,7 +901,7 @@ void TriangleApp::renderTriangle(uint32_t swapchainIndex) {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     updateVertexBuffer(commandBuffer);
-    updateUniformBuffer(commandBuffer);
+    updateUniformBuffer(commandBuffer, swapchainIndex);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context.pipeline);
 
@@ -922,7 +931,7 @@ void TriangleApp::renderTriangle(uint32_t swapchainIndex) {
                            &offset);
     vkCmdBindIndexBuffer(commandBuffer, context.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context.pipelineLayout,
-                            0, 1, &context.descriptorSet, 0, nullptr);
+                            0, 1, &context.descriptorSets.at(swapchainIndex), 0, nullptr);
     vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
@@ -1037,7 +1046,8 @@ void TriangleApp::updateVertexBuffer(const VkCommandBuffer &commandBuffer) const
 //    vkCmdUpdateBuffer(commandBuffer, context.vertexBuffer, 0, sizeof(vertexData), vertexData);
 }
 
-void TriangleApp::updateUniformBuffer(VkCommandBuffer const &commandBuffer) const {
+void
+TriangleApp::updateUniformBuffer(const VkCommandBuffer &commandBuffer, const uint32_t index) const {
     using namespace std::chrono;
     const auto timestamp = static_cast<float>(duration_cast<milliseconds>(
             system_clock::now() - startTimePoint).count()) / 1000.0f;
@@ -1074,10 +1084,10 @@ void TriangleApp::updateUniformBuffer(VkCommandBuffer const &commandBuffer) cons
             .projectionMatrix = projectionMatrix
     };
 
-    vkCmdUpdateBuffer(commandBuffer, context.uniformBuffer, 0, sizeof(ubo), &ubo);
+    vkCmdUpdateBuffer(commandBuffer, context.uniformBuffers.at(index), 0, sizeof(ubo), &ubo);
 
     VkDescriptorBufferInfo descriptorBufferInfo{
-            .buffer = context.uniformBuffer,
+            .buffer = context.uniformBuffers.at(index),
             .offset = 0,
             .range = sizeof(ubo)
     };
@@ -1085,7 +1095,7 @@ void TriangleApp::updateUniformBuffer(VkCommandBuffer const &commandBuffer) cons
     VkWriteDescriptorSet descriptorWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
-            .dstSet = context.descriptorSet,
+            .dstSet = context.descriptorSets.at(index),
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = 1,

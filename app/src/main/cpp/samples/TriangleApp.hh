@@ -82,11 +82,11 @@ class TriangleApp final : public VulkanBaseApp {
 
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 
-        VkBuffer uniformBuffer = VK_NULL_HANDLE;
+        std::vector<VkBuffer> uniformBuffers{};
 
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
-        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        std::vector<VkDescriptorSet> descriptorSets{};
 
         /// A set of semaphores that can be reused
         std::vector<VkSemaphore> recycledSemaphores{};
@@ -150,12 +150,14 @@ private:
 
     void updateVertexBuffer(const VkCommandBuffer &commandBuffer) const;
 
-    void updateUniformBuffer(const VkCommandBuffer &commandBuffer) const;
+    void updateUniformBuffer(const VkCommandBuffer &commandBuffer, uint32_t index) const;
 
     /* Util functions */
     void createBuffer(VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsageFlags,
-                      VkSharingMode sharingMode, VkFlags requirementsMask, VkBuffer& rBuffer, VkDeviceMemory& rDeviceMemory);
+                      VkSharingMode sharingMode, VkFlags requirementsMask, VkBuffer &rBuffer,
+                      VkDeviceMemory &rDeviceMemory);
 
+private:
     static bool validateExtensions(const std::vector<const char *> &requiredExtensions,
                                    const std::vector<VkExtensionProperties> &availableExtensions);
 };
